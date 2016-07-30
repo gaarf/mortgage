@@ -1,0 +1,59 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+<link rel="import" href="/bower_components/iron-resizable-behavior/iron-resizable-behavior.html">
+<link rel="import" href="d3.html">
+
+<dom-module id="amortization-dataviz">
+    <template>
+      <style>
+
+        :host {
+          position: relative;
+          display: block;
+          overflow: hidden;
+        }
+
+        #svg {
+          background-color: yellow;
+        }
+      </style>
+
+      <svg id="svg" height$="[[svgHeight]]" width$="[[svgWidth]]">
+        <text x=20 y=30>[[svgWidth]] * [[svgHeight]]</text>
+      </svg>
+
+
+
+    </template>
+</dom-module>
+
+
+<script>
+
+Polymer({
+    is: 'amortization-dataviz',
+
+    behaviors: [
+      Polymer.IronResizableBehavior
+    ],
+
+    properties: {
+      svgHeight: Number,
+      svgWidth: Number
+    },
+
+    listeners: {
+      'iron-resize': 'handleResize'
+    },
+
+    attached: function () {
+      this.async(this.notifyResize);
+    },
+
+    handleResize: function () {
+      this.set('svgHeight', this.offsetHeight);
+      this.set('svgWidth', this.offsetWidth);
+    }
+
+});
+
+</script>

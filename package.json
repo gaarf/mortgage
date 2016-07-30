@@ -1,0 +1,21 @@
+{
+  "name": "mortgage",
+  "version": "0.0.1",
+  "private": true,
+  "description": "mortgage amortization calculator",
+  "dependencies": {
+    "serve": "^1.4.0"
+  },
+  "devDependencies": {
+    "bower": "*"
+  },
+  "scripts": {
+    "postinstall": "node node_modules/bower/bin/bower install",
+    "start": "node node_modules/serve/bin/serve"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaarf/mortgage"
+  },
+  "license": "MIT"
+}
