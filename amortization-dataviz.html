@@ -38,8 +38,23 @@ Polymer({
 
     properties: {
       svgHeight: Number,
-      svgWidth: Number
+      svgWidth: Number,
+      data: Array
     },
+
+
+
+    observers: [
+      '_observeData(data)'
+    ],
+
+    _observeData: function () {
+      var data = this.get('data');
+      console.log(data.length);
+    },
+
+
+    /* ------------------------------------ */
 
     listeners: {
       'iron-resize': 'handleResize'

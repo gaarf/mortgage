@@ -32,8 +32,8 @@
           @apply(--layout-vertical);
           @apply(--layout-justified);
           width: 200px;
-          padding: 10px;
-          border-right: 1px solid #CCC;
+          padding: 20px 10px;
+          border-right: 2px solid #EEE;
         }
 
         #params > div {
@@ -60,9 +60,7 @@
 
         section#results > div {
           @apply(--layout-flex);
-          @apply(--layout-scroll);
           @apply(--layout-relative);
-          padding: 10px;
         }
 
         #results table {
@@ -89,11 +87,17 @@
           content: 'month ';
         }
 
-        @media screen and (max-width: 799px),
+        @media screen and (max-width: 699px),
                screen and (max-height: 399px) {
           .mq-hide {
             display:none !important;
           }
+        }
+
+        #tableCtnr {
+          @apply(--layout-scroll);
+          padding: 10px;
+          border-top: 2px solid #EEE;
         }
 
         #dataviz {
@@ -113,7 +117,7 @@
         <div>
           <label>
             <span>Rate:</span> <strong>[[loan.rate]]%</strong>
-            <input type="range" value="{{loan.rate::input}}" min="0" max="5" step=".025" />
+            <input type="range" value="{{loan.rate::input}}" min="1" max="5" step=".025" />
           </label>
         </div>
         <div>
@@ -132,7 +136,7 @@
 
       <section id="results">
 
-        <div class="mq-hide">
+        <div id="tableCtnr" class="mq-hide">
 
           <p>Total interest paid: <strong>[[_formatAmount(amortization.total)]]</strong>
               over <strong>[[_formatMonths(amortization.table.length)]]</strong>.</p>
@@ -147,7 +151,7 @@
             </tr>
             <template is="dom-repeat" items="[[amortization.table]]" as="row">
               <tr>
-                <td class="month">[[_plusOne(index)]]</td>
+                <td class="month">[[_plus(index, 1)]]</td>
                 <template is="dom-repeat" items="[[row]]" as="cell">
                   <td>[[_formatAmount(cell)]]</td>
                 </template>
@@ -186,8 +190,9 @@ window.addEventListener('WebComponentsReady', function () {
               return {
                 amount: 405000,
                 rate: 3.375,
-                term: 20,
-                addpay: 0
+                term: 30,
+                addpay: 0,
+                bubble: {}
               }
             }
           },
@@ -200,7 +205,11 @@ window.addEventListener('WebComponentsReady', function () {
         },
 
         _formatAmount: function (number) {
-          return (+number).toLocaleString('en-US', {style:'currency', currency:'USD', maximumFractionDigits: 2});
+          return (+number).toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            maximumFractionDigits: 2
+          });
         },
 
         _formatMonths: function (months) {
@@ -216,16 +225,21 @@ window.addEventListener('WebComponentsReady', function () {
 
           var i = +(loan.rate) / 1200,
               n = +(loan.term) * 12,
-              p = -(loan.amount)
-              a = +(loan.addpay);
+              p = -(loan.amount);
 
           var pmt = i * p * Math.pow((1 + i), n) / (1 - Math.pow((1 + i), n)),
               principal = +(loan.amount),
-              row, mip, mpp, mpa;
+              row, m = 1, mip, mpp, mpa;
 
           do {
             row = [];
-            mpa = Math.min( pmt + a, principal);
+
+            // payment for the month
+            mpa = Math.min(
+              Math.max( +(loan.addpay) + pmt, loan.bubble[m++] || 0 ),
+              principal
+            );
+
             mip = principal * i;
             mpp = mpa - mip;
             principal -= mpp;
@@ -243,8 +257,8 @@ window.addEventListener('WebComponentsReady', function () {
           return out;
         },
 
-        _plusOne: function (n) {
-            return n + 1;
+        _plus: function (a, b) {
+            return a + b;
         }
 
     });
