@@ -31,7 +31,7 @@
           @apply(--layout-inline);
           @apply(--layout-vertical);
           @apply(--layout-justified);
-          width: 200px;
+          width: 150px;
           padding: 20px 10px;
           border-right: 2px solid #EEE;
         }
@@ -46,6 +46,7 @@
 
         #params label > span {
           font-size: 10px;
+          display: block;
         }
 
         #params input {
@@ -59,31 +60,42 @@
         }
 
         section#results > div {
-          @apply(--layout-flex);
+          @apply(--layout-flex-6);
           @apply(--layout-relative);
         }
 
-        #results table {
+        section > div#tableCtnr {
+          @apply(--layout-flex-2);
+          @apply(--layout-scroll);
+          padding: 10px;
+          border-top: 2px solid #EEE;
+        }
+
+        #tableCtnr > p {
+          text-align: center;
+        }
+
+        #tableCtnr table {
           width: 100%;
           border-spacing: 4px;
         }
-        #results th, #results td {
+        #tableCtnr th, #tableCtnr td {
           text-align: right;
           padding: 4px 4px 0;
         }
-        #results td {
+        #tableCtnr td {
           border: 1px inset #EEE;
         }
-        #results th, #results td.month {
+        #tableCtnr th, #tableCtnr td.month {
           border: none;
           font-size: 10px;
           color: #AAA;
         }
-        #results td.month {
+        #tableCtnr td.month {
           width: 1px;
           white-space: nowrap;
         }
-        #results td.month::before {
+        #tableCtnr td.month::before {
           content: 'month ';
         }
 
@@ -92,12 +104,6 @@
           .mq-hide {
             display:none !important;
           }
-        }
-
-        #tableCtnr {
-          @apply(--layout-scroll);
-          padding: 10px;
-          border-top: 2px solid #EEE;
         }
 
         #dataviz {
@@ -138,27 +144,33 @@
 
         <div id="tableCtnr" class="mq-hide">
 
-          <p>Total interest paid: <strong>[[_formatAmount(amortization.total)]]</strong>
-              over <strong>[[_formatMonths(amortization.table.length)]]</strong>.</p>
+          <p>Interest: <strong>[[_formatAmount(amortization.total)]]</strong>
+              over <strong>[[_formatMonths(amortization.table.length)]]</strong></p>
 
-          <table>
-            <tr>
-              <th></th>
-              <th>Payment</th>
-              <th>Interest</th>
-              <th>Principal</th>
-              <th>Balance</th>
-            </tr>
-            <template is="dom-repeat" items="[[amortization.table]]" as="row">
+          <p hidden$="[[showTable]]">
+            Monthly payment: <strong>[[_formatAmount(amortization.table.0.0)]]</strong><br>
+            <button on-tap="_doShowTable">show amortization table</button>
+          </p>
+
+          <template is="dom-if" if="[[showTable]]">
+            <table>
               <tr>
-                <td class="month">[[_plus(index, 1)]]</td>
-                <template is="dom-repeat" items="[[row]]" as="cell">
-                  <td>[[_formatAmount(cell)]]</td>
-                </template>
+                <th></th>
+                <th>Payment</th>
+                <th>Interest</th>
+                <th>Principal</th>
+                <th>Balance</th>
               </tr>
-            </template>
-          </table>
-
+              <template is="dom-repeat" items="[[amortization.table]]" as="row">
+                <tr>
+                  <td class="month">[[_plus(index, 1)]]</td>
+                  <template is="dom-repeat" items="[[row]]" as="cell">
+                    <td>[[_formatAmount(cell)]]</td>
+                  </template>
+                </tr>
+              </template>
+            </table>
+          </template>
         </div>
 
         <div>
@@ -200,8 +212,14 @@ window.addEventListener('WebComponentsReady', function () {
           amortization: {
             type: Object,
             computed: '_computeAmortization(loan.*)'
-          }
+          },
 
+          showTable: Boolean
+
+        },
+
+        _doShowTable: function () {
+          this.set('showTable', true);
         },
 
         _formatAmount: function (number) {
@@ -213,10 +231,9 @@ window.addEventListener('WebComponentsReady', function () {
         },
 
         _formatMonths: function (months) {
-          months--;
           var y = Math.floor(months/12),
               m = months - (y*12);
-          return y+' year'+(y==1?'':'s')+(m?', '+m+' month'+(m==1?'':'s'):'');
+          return y+' year'+(y==1?'':'s')+(m?' and '+m+' month'+(m==1?'':'s'):'');
         },
 
         _computeAmortization: function () {
@@ -234,19 +251,22 @@ window.addEventListener('WebComponentsReady', function () {
           do {
             row = [];
 
+            // interest payment for the month
+            mip = principal * i;
+
             // payment for the month
             mpa = Math.min(
               Math.max( +(loan.addpay) + pmt, loan.bubble[m++] || 0 ),
-              principal
+              principal + mip
             );
-
-            mip = principal * i;
-            mpp = mpa - mip;
-            principal -= mpp;
-
             row.push(mpa);
+
             row.push(mip); // interest paid
+
+            mpp = mpa - mip;
             row.push(mpp); // principal paid
+
+            principal -= mpp;
             row.push(principal); // principal balance
 
             out.table.push(row);
