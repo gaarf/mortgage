@@ -112,6 +112,9 @@ Polymer({
 
 
     _chartUpdate: function (data, width, height) {
+      console.log('_chartUpdate',arguments);
+      this.debounce(arguments.callee.name, function() {
+
       var chart = this.get('_chart') || this._chartSetup();
 
       var xMonths = d3.scaleLinear()
@@ -150,6 +153,7 @@ Polymer({
           };
       });
 
+
       // scale for yearly payments
       var yYearly = d3.scaleLinear()
         .domain([0, d3.max(yearlyData, function(d) {
@@ -161,21 +165,22 @@ Polymer({
       var stack = d3.stack()
         .keys(['interest', 'principal']);
 
+      console.log(stack(yearlyData));
 
       var payments = chart.selectAll('g.payments')
         .data(stack(yearlyData));
 
       payments.enter().append("g")
-          .attr("class", function (d, i) {
-            return 'payments '+d.key;
-          });
+        .attr("class", function (d, i) {
+          return 'payments '+d.key;
+        });
 
       payments.exit().remove();
 
       var yearbars = payments.selectAll("rect")
-          .data(function(d) {
-            return d;
-          });
+        .data(function(d) {
+          return d;
+        });
 
       yearbars.enter().append("rect");
 
@@ -225,6 +230,7 @@ Polymer({
         .call(d3.axisRight(yYearly))
         .raise();
 
+      });
     },
 
     listeners: {
