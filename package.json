@@ -7,11 +7,13 @@
     "serve": "^1.4.0"
   },
   "devDependencies": {
-    "bower": "*"
+    "bower": "*",
+    "vulcanize": "^1.14.8"
   },
   "scripts": {
     "postinstall": "node node_modules/bower/bin/bower install",
-    "start": "node node_modules/serve/bin/serve"
+    "start": "node node_modules/serve/bin/serve",
+    "build": "mkdir -p dist && node node_modules/vulcanize/bin/vulcanize index.html --inline-scripts > dist/index.html"
   },
   "repository": {
     "type": "git",
