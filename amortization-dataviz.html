@@ -90,19 +90,23 @@ Polymer({
 
       // create chart area
       var g = svg.append('g')
-        .attr("transform", "translate(" + m.left + "," + m.top + ")");
+        .attr('transform', 'translate(' + m.left + ',' + m.top + ')');
 
       // create balance path
       g.append('path')
         .attr('class', 'balance');
 
+      // create payment groups
+      g.append('g')
+        .attr('class', 'interest payments');
+      g.append('g')
+        .attr('class', 'principal payments');
+
       // create axes
       g.append('g')
-        .attr('class', 'axis x');
-
+        .attr('class', 'axis bottom');
       g.append('g')
         .attr('class', 'axis left');
-
       g.append('g')
         .attr('class', 'axis right');
 
@@ -124,7 +128,7 @@ Polymer({
       var xYears = d3.scaleBand()
         .domain(d3.range(1, Math.ceil(data.length/12)+1))
         .rangeRound([0, width])
-        .padding(.1);
+        .padding(.05);
 
       // scale for balance
       var yBalance = d3.scaleLinear()
@@ -165,40 +169,29 @@ Polymer({
       var stack = d3.stack()
         .keys(['interest', 'principal']);
 
-      console.log(stack(yearlyData));
+      function barUpdate(bars) {
+        bars
+          .attr('x', function(d) {
+            return xYears(d.data.year);
+          })
+          .attr('y', function(d) {
+            return yYearly(d[1]);
+          })
+          .attr('height', function(d) {
+            return (yYearly(d[0]) - yYearly(d[1]));
+          })
+          .attr('width', xYears.bandwidth());
+      }
 
-      var payments = chart.selectAll('g.payments')
-        .data(stack(yearlyData));
+      stack(yearlyData).forEach(function (payments) {
+        var b = chart.select('g.'+payments.key)
+          .selectAll('rect').data(payments);
 
-      payments.enter().append("g")
-        .attr("class", function (d, i) {
-          return 'payments '+d.key;
-        });
+        barUpdate(b.enter().append('rect'));
+        barUpdate(b);
+        b.exit().remove();
 
-      payments.exit().remove();
-
-      var yearbars = payments.selectAll("rect")
-        .data(function(d) {
-          return d;
-        });
-
-      yearbars.enter().append("rect");
-
-      yearbars
-        .attr("x", function(d) {
-          return xYears(d.data.year);
-        })
-        .attr("y", function(d) {
-          return yYearly(d[1]);
-        })
-        .attr("height", function(d) {
-          return (yYearly(d[0]) - yYearly(d[1]));
-        })
-        .attr("width", xYears.bandwidth());
-
-
-      yearbars.exit().remove();
-
+      });
 
       /* ------------------------------------ */
 
@@ -216,7 +209,7 @@ Polymer({
       /* ------------------------------------ */
 
       // update axes
-      chart.select('.axis.x')
+      chart.select('.axis.bottom')
         .attr('transform', 'translate(0, '+height+')')
         .call(d3.axisBottom(xYears))
         .raise();

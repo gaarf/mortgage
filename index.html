@@ -91,7 +91,19 @@
           font-size: 10px;
           color: #AAA;
         }
-        #tableCtnr td.month {
+
+        #tableCtnr tr:hover td {
+          cursor: pointer;
+        }
+        #tableCtnr tr.edited td:nth-child(2) {
+          font-weight: bold;
+        }
+        #tableCtnr tr:hover td:not(.month) {
+          background-color: palegreen;
+        }
+
+
+        #tableCtnr tr td.month {
           width: 1px;
           white-space: nowrap;
         }
@@ -162,7 +174,7 @@
                 <th>Balance</th>
               </tr>
               <template is="dom-repeat" items="[[amortization.table]]" as="row">
-                <tr>
+                <tr on-tap="_doPayClick" class$="[[_classForRow(index, loan.bubble.*)]]">
                   <td class="month">[[_plus(index, 1)]]</td>
                   <template is="dom-repeat" items="[[row]]" as="cell">
                     <td>[[_formatAmount(cell)]]</td>
@@ -222,6 +234,27 @@ window.addEventListener('WebComponentsReady', function () {
           this.set('showTable', true);
         },
 
+        _classForRow: function (m) {
+            if(this.get('loan.bubble.'+(m+1))) {
+              return 'edited';
+            }
+        },
+
+        _doPayClick: function (e) {
+          var m = e.model.index,
+              a = this.get('amortization'),
+              p = prompt('Payment for month #'+(m+1), Math.ceil(a.table[m][0]));
+          p = parseFloat(p, 10);
+          if(p < a.payment) {
+            alert('That\'s not enough!');
+            p = false;
+          }
+          if(p) {
+            this.set('loan.bubble.'+(m+1), p);
+          }
+
+        },
+
         _formatAmount: function (number) {
           return (+number).toLocaleString('en-US', {
             style: 'currency',
@@ -248,6 +281,8 @@ window.addEventListener('WebComponentsReady', function () {
               principal = +(loan.amount),
               row, m = 1, mip, mpp, mpa;
 
+          out.payment = pmt;
+
           do {
             row = [];
 
@@ -256,7 +291,7 @@ window.addEventListener('WebComponentsReady', function () {
 
             // payment for the month
             mpa = Math.min(
-              Math.max( +(loan.addpay) + pmt, loan.bubble[m++] || 0 ),
+              loan.bubble[m++] || ( +(loan.addpay) + pmt ),
               principal + mip
             );
             row.push(mpa);
@@ -278,7 +313,7 @@ window.addEventListener('WebComponentsReady', function () {
         },
 
         _plus: function (a, b) {
-            return a + b;
+          return a + b;
         }
 
     });
