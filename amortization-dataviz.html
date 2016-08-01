@@ -1,0 +1,244 @@
+<link rel="import" href="./bower_components/polymer/polymer.html">
+<link rel="import" href="./bower_components/iron-resizable-behavior/iron-resizable-behavior.html">
+<link rel="import" href="./d3.html">
+
+<dom-module id="amortization-dataviz">
+    <template>
+      <style>
+
+        :host {
+          position: relative;
+          display: block;
+          overflow: hidden;
+        }
+
+        #svg ::content .principal rect {
+          fill: steelblue;
+        }
+
+        #svg ::content .interest rect {
+          fill: red;
+        }
+
+        #svg ::content path.balance {
+          fill: none;
+          stroke: orange;
+          stroke-width: 4px;
+        }
+
+      </style>
+
+      <svg id="svg"
+        height$="[[_svgDim.height]]"
+        width$="[[_svgDim.width]]"
+      ></svg>
+
+    </template>
+</dom-module>
+
+
+<script>
+
+Polymer({
+    is: 'amortization-dataviz',
+
+    behaviors: [
+      Polymer.IronResizableBehavior
+    ],
+
+    properties: {
+      data: Array,
+      _chart: Object,
+      _svgDim: {
+        type: Object,
+        value: function () {
+          return {height:0, width:0};
+        }
+      },
+      _margin: {
+        type: Object,
+        value: function () {
+          return {top: 10, right: 60, bottom: 30, left: 60};
+        }
+      },
+      _chartDim: {
+        type: Object,
+        computed: '_computeChartDim(_margin.*, _svgDim.*)'
+      }
+    },
+
+    _computeChartDim: function (m, s) {
+      m = m.base, s = s.base;
+      return {
+        width: s.width - m.left - m.right,
+        height: s.height - m.top - m.bottom
+      };
+    },
+
+    observers: [
+      '_chartUpdate(data, _chartDim.width, _chartDim.height)'
+    ],
+
+    _chartSetup: function () {
+      var f;
+      while(f = this.$.svg.firstChild) {
+        this.$.svg.removeChild(f);
+      }
+
+      var svg = d3.select(this.$.svg);
+      var m = this.get('_margin');
+
+      // create chart area
+      var g = svg.append('g')
+        .attr('transform', 'translate(' + m.left + ',' + m.top + ')');
+
+      // create balance path
+      g.append('path')
+        .attr('class', 'balance');
+
+      // create payment groups
+      g.append('g')
+        .attr('class', 'interest payments');
+      g.append('g')
+        .attr('class', 'principal payments');
+
+      // create axes
+      g.append('g')
+        .attr('class', 'axis bottom');
+      g.append('g')
+        .attr('class', 'axis left');
+      g.append('g')
+        .attr('class', 'axis right');
+
+      this.set('_chart', g);
+      return g;
+    },
+
+
+    _chartUpdate: function (data, width, height) {
+      console.log('_chartUpdate',arguments);
+      this.debounce(arguments.callee.name, function() {
+
+      var chart = this.get('_chart') || this._chartSetup();
+
+      var xMonths = d3.scaleLinear()
+        .domain([0, data.length])
+        .range([0, width]);
+
+      var xYears = d3.scaleBand()
+        .domain(d3.range(1, Math.ceil(data.length/12)+1))
+        .rangeRound([0, width])
+        .padding(.05);
+
+      // scale for balance
+      var yBalance = d3.scaleLinear()
+        .domain([0, data[0][0]+data[0][3]])
+        .range([height, 0])
+        .nice();
+
+      // calculate yearly payment totals
+      var histogram = d3.histogram()
+        .thresholds(xYears.domain().map(function (o) {
+          return o*12;
+        }))
+        .value(function (d, i) {
+          return i;
+        });
+
+      var yearlyData = histogram(data).map(function (s, i) {
+          return {
+            year: i+1,
+            interest: d3.sum(s, function(t) {
+              return t[1];
+            }),
+            principal: d3.sum(s, function(t) {
+              return t[2];
+            })
+          };
+      });
+
+
+      // scale for yearly payments
+      var yYearly = d3.scaleLinear()
+        .domain([0, d3.max(yearlyData, function(d) {
+          return d.interest + d.principal;
+        })])
+        .range([height, 0])
+        .nice();
+
+      var stack = d3.stack()
+        .keys(['interest', 'principal']);
+
+      function barUpdate(bars) {
+        bars
+          .attr('x', function(d) {
+            return xYears(d.data.year);
+          })
+          .attr('y', function(d) {
+            return yYearly(d[1]);
+          })
+          .attr('height', function(d) {
+            return (yYearly(d[0]) - yYearly(d[1]));
+          })
+          .attr('width', xYears.bandwidth());
+      }
+
+      stack(yearlyData).forEach(function (payments) {
+        var b = chart.select('g.'+payments.key)
+          .selectAll('rect').data(payments);
+
+        barUpdate(b.enter().append('rect'));
+        barUpdate(b);
+        b.exit().remove();
+
+      });
+
+      /* ------------------------------------ */
+
+      var balance = d3.line()
+        .x(function(d, i) { return xMonths(i); })
+        .y(function(d) { return yBalance(d); });
+
+      chart.select('path.balance')
+        .datum(data.map(function (row) {
+          return row[3];
+        }))
+        .attr('d', balance)
+        .raise();
+
+      /* ------------------------------------ */
+
+      // update axes
+      chart.select('.axis.bottom')
+        .attr('transform', 'translate(0, '+height+')')
+        .call(d3.axisBottom(xYears))
+        .raise();
+
+      chart.select('.axis.left')
+        .call(d3.axisLeft(yBalance))
+        .raise();
+
+      chart.select('.axis.right')
+        .attr('transform', 'translate('+width+', 0)')
+        .call(d3.axisRight(yYearly))
+        .raise();
+
+      });
+    },
+
+    listeners: {
+      'iron-resize': 'handleResize'
+    },
+
+    attached: function () {
+      this.async(this.notifyResize);
+    },
+
+    handleResize: function () {
+      this.set('_svgDim.height', this.offsetHeight);
+      this.set('_svgDim.width', this.offsetWidth);
+    }
+
+});
+
+</script>

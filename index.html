@@ -1,0 +1,327 @@
+<!doctype html>
+<html>
+<head>
+
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=yes">
+
+  <title>Mortgage Amortization</title>
+
+  <script src="./bower_components/webcomponentsjs/webcomponents-lite.js"></script>
+  <link rel="import" href="./bower_components/polymer/polymer.html">
+  <link rel="import" href="./bower_components/iron-flex-layout/iron-flex-layout.html">
+
+  <link rel="import" href="./amortization-dataviz.html">
+
+</head>
+<body>
+
+<dom-module id="mortgage-amortization">
+    <template>
+      <style>
+        :host {
+          font-family: sans-serif;
+          @apply(--layout-fit);
+          @apply(--layout-horizontal);
+          overflow: hidden;
+        }
+
+        section#params {
+          @apply(--layout-inline);
+          @apply(--layout-vertical);
+          @apply(--layout-justified);
+          width: 150px;
+          padding: 20px 10px;
+          border-right: 2px solid #EEE;
+        }
+
+        #params > div {
+          @apply(--layout-inline);
+        }
+
+        #params label {
+          display: block;
+        }
+
+        #params label > span {
+          font-size: 10px;
+          display: block;
+        }
+
+        #params input {
+          width: 100%;
+        }
+
+
+        section#results {
+          @apply(--layout-flex);
+          @apply(--layout-vertical-reverse);
+        }
+
+        section#results > div {
+          @apply(--layout-flex-6);
+          @apply(--layout-relative);
+        }
+
+        section > div#tableCtnr {
+          @apply(--layout-flex-2);
+          @apply(--layout-scroll);
+          padding: 10px;
+          border-top: 2px solid #EEE;
+        }
+
+        #tableCtnr > p {
+          text-align: center;
+        }
+
+        #tableCtnr table {
+          width: 100%;
+          border-spacing: 4px;
+        }
+        #tableCtnr th, #tableCtnr td {
+          text-align: right;
+          padding: 4px 4px 0;
+        }
+        #tableCtnr td {
+          border: 1px inset #EEE;
+        }
+        #tableCtnr th, #tableCtnr td.month {
+          border: none;
+          font-size: 10px;
+          color: #AAA;
+        }
+
+        #tableCtnr tr:hover td {
+          cursor: pointer;
+        }
+        #tableCtnr tr.edited td:nth-child(2) {
+          font-weight: bold;
+        }
+        #tableCtnr tr:hover td:not(.month) {
+          background-color: palegreen;
+        }
+
+
+        #tableCtnr tr td.month {
+          width: 1px;
+          white-space: nowrap;
+        }
+        #tableCtnr td.month::before {
+          content: 'month ';
+        }
+
+        @media screen and (max-width: 699px),
+               screen and (max-height: 399px) {
+          .mq-hide {
+            display:none !important;
+          }
+        }
+
+        #dataviz {
+          @apply(--layout-fit);
+        }
+
+
+      </style>
+
+      <section id="params" class="mq-hide">
+        <div>
+          <label>
+            <span>Amount:</span> <strong>[[_formatAmount(loan.amount)]]</strong>
+            <input type="range" value="{{loan.amount::input}}" min="100000" max="1000000" step="5000" />
+          </label>
+        </div>
+        <div>
+          <label>
+            <span>Rate:</span> <strong>[[loan.rate]]%</strong>
+            <input type="range" value="{{loan.rate::input}}" min="1" max="5" step=".025" />
+          </label>
+        </div>
+        <div>
+          <label>
+            <span>Term:</span> <strong>[[loan.term]] years</strong>
+            <input type="range" value="{{loan.term::input}}" min="15" max="30" step="1" />
+          </label>
+        </div>
+        <div>
+          <label>
+            <span>Additional payment:</span> <strong>[[_formatAmount(loan.addpay)]]</strong>
+            <input type="range" value="{{loan.addpay::input}}" min="0" max="2000" step="50" />
+          </label>
+        </div>
+      </section>
+
+      <section id="results">
+
+        <div id="tableCtnr" class="mq-hide">
+
+          <p>Interest: <strong>[[_formatAmount(amortization.total)]]</strong>
+              over <strong>[[_formatMonths(amortization.table.length)]]</strong></p>
+
+          <p hidden$="[[showTable]]">
+            Monthly payment: <strong>[[_formatAmount(amortization.table.0.0)]]</strong><br>
+            <button on-tap="_doShowTable">show amortization table</button>
+          </p>
+
+          <template is="dom-if" if="[[showTable]]">
+            <table>
+              <tr>
+                <th></th>
+                <th>Payment</th>
+                <th>Interest</th>
+                <th>Principal</th>
+                <th>Balance</th>
+              </tr>
+              <template is="dom-repeat" items="[[amortization.table]]" as="row">
+                <tr on-tap="_doPayClick" class$="[[_classForRow(index, loan.bubble.*)]]">
+                  <td class="month">[[_plus(index, 1)]]</td>
+                  <template is="dom-repeat" items="[[row]]" as="cell">
+                    <td>[[_formatAmount(cell)]]</td>
+                  </template>
+                </tr>
+              </template>
+            </table>
+          </template>
+        </div>
+
+        <div>
+          <amortization-dataviz
+            id="dataviz"
+            data="[[amortization.table]]"
+          ></amortization-dataviz>
+        </div>
+
+      </section>
+
+
+    </template>
+</dom-module>
+
+
+<script>
+
+window.addEventListener('WebComponentsReady', function () {
+
+    Polymer({
+        is: 'mortgage-amortization',
+
+        properties: {
+
+          loan: {
+            type: Object,
+            value: function () {
+              return {
+                amount: 405000,
+                rate: 3.375,
+                term: 30,
+                addpay: 0,
+                bubble: {}
+              }
+            }
+          },
+
+          amortization: {
+            type: Object,
+            computed: '_computeAmortization(loan.*)'
+          },
+
+          showTable: Boolean
+
+        },
+
+        _doShowTable: function () {
+          this.set('showTable', true);
+        },
+
+        _classForRow: function (m) {
+            if(this.get('loan.bubble.'+(m+1))) {
+              return 'edited';
+            }
+        },
+
+        _doPayClick: function (e) {
+          var m = e.model.index,
+              a = this.get('amortization'),
+              p = prompt('Payment for month #'+(m+1), Math.ceil(a.table[m][0]));
+          p = parseFloat(p, 10);
+          if(p < a.payment) {
+            alert('That\'s not enough!');
+            p = false;
+          }
+          if(p) {
+            this.set('loan.bubble.'+(m+1), p);
+          }
+
+        },
+
+        _formatAmount: function (number) {
+          return (+number).toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            maximumFractionDigits: 2
+          });
+        },
+
+        _formatMonths: function (months) {
+          var y = Math.floor(months/12),
+              m = months - (y*12);
+          return y+' year'+(y==1?'':'s')+(m?' and '+m+' month'+(m==1?'':'s'):'');
+        },
+
+        _computeAmortization: function () {
+          var out = { total:0, payment:0, table:[] },
+              loan = this.get('loan');
+
+          var i = +(loan.rate) / 1200,
+              n = +(loan.term) * 12,
+              p = -(loan.amount);
+
+          var pmt = i * p * Math.pow((1 + i), n) / (1 - Math.pow((1 + i), n)),
+              principal = +(loan.amount),
+              row, m = 1, mip, mpp, mpa;
+
+          out.payment = pmt;
+
+          do {
+            row = [];
+
+            // interest payment for the month
+            mip = principal * i;
+
+            // payment for the month
+            mpa = Math.min(
+              loan.bubble[m++] || ( +(loan.addpay) + pmt ),
+              principal + mip
+            );
+            row.push(mpa);
+
+            row.push(mip); // interest paid
+
+            mpp = mpa - mip;
+            row.push(mpp); // principal paid
+
+            principal -= mpp;
+            row.push(principal); // principal balance
+
+            out.table.push(row);
+            out.total += mip;
+
+          } while (Math.floor(principal) > 0);
+
+          return out;
+        },
+
+        _plus: function (a, b) {
+          return a + b;
+        }
+
+    });
+});
+
+</script>
+
+<mortgage-amortization></mortgage-amortization>
+
+</body>
+</html>
